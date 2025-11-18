@@ -3,7 +3,7 @@ import httpStatus from 'http-status';
 import { User } from '../user/user.model';
 import { TLoginUser, TRegisterUser } from './auth.interface';
 import config from '../../config';
-import { USER_STATUS } from '../user/user.constant';
+import { USER_ROLE, USER_STATUS } from '../user/user.constant';
 import AppError from '../../errors/appError';
 import { comparePassword } from '../../utils/bcryptHelper';
 import { createToken, verifyToken } from '../../utils/jwtHelper';
@@ -17,11 +17,12 @@ const registerUser = async (payload: TRegisterUser) => {
   }
 
 
-  let userStatus: keyof typeof USER_STATUS = USER_STATUS.PENDING;
+  let userStatus: keyof typeof USER_STATUS = USER_STATUS.ACTIVE;
 
   const newUser = await User.create({
     ...payload,
     status: userStatus,
+    role:USER_ROLE.USER,
     refreshTokens: [],
   });
 
@@ -52,7 +53,6 @@ const registerUser = async (payload: TRegisterUser) => {
       email: newUser.email,
       role: newUser.role,
       status: newUser.status,
-      workerCredentials: newUser.workerCredentials || null,
     },
   };
 };
