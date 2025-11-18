@@ -18,7 +18,7 @@ type ExpiresIn = number | `${number}${"s" | "m" | "h" | "d"}`;
 export const createToken = (
   jwtPayload: JwtUserPayload,
   secret: Secret,
-  expiresIn: ExpiresIn
+  expiresIn: ExpiresIn 
 ): string => {
   const signOptions: SignOptions = { expiresIn };
   return jwt.sign(jwtPayload, secret, signOptions);

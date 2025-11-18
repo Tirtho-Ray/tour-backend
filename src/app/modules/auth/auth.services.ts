@@ -10,41 +10,22 @@ import { createToken, verifyToken } from '../../utils/jwtHelper';
 
 
 const registerUser = async (payload: TRegisterUser) => {
-  // Step 1: Check if email already exists
+
   const existingUser = await User.findOne({ email: payload.email });
   if (existingUser) {
     throw new AppError(httpStatus.CONFLICT, 'User with this email already exists!');
   }
 
-  //  Step 2: Determine status based on role
+
   let userStatus: keyof typeof USER_STATUS = USER_STATUS.PENDING;
 
-  switch (payload.role) {
-    case 'INFLUENCER':
-      userStatus = USER_STATUS.ACTIVE;
-      break;
-
-    case 'WORKER':
-      userStatus = USER_STATUS.PENDING;
-
-      // Worker credentials validation
-      if (!payload.workerCredentials || Object.keys(payload.workerCredentials).length === 0) {
-        throw new AppError(httpStatus.BAD_REQUEST, 'Worker credentials are required for registration.');
-      }
-      break;
-
-    default:
-      throw new AppError(httpStatus.BAD_REQUEST, 'Invalid user role provided!');
-  }
-
-  //  Step 3: Create user
   const newUser = await User.create({
     ...payload,
     status: userStatus,
     refreshTokens: [],
   });
 
-  //  Step 4: Prepare JWT payload
+
   const jwtPayload = {
     _id: newUser._id.toString(),
     name: newUser.name,
@@ -53,15 +34,15 @@ const registerUser = async (payload: TRegisterUser) => {
     status: newUser.status,
   };
 
-  //Step 5: Generate Tokens
-  const accessToken = createToken(jwtPayload, config.jwt_access_secret!, '15m');
-  const refreshToken = createToken(jwtPayload, config.jwt_refresh_secret!, '7d');
+  type ExpiresIn = `${number}${"s" | "m" | "h" | "d"}`;
+  const accessToken = createToken(jwtPayload, config.jwt_access_secret!, config.jwt_access_expires_in as ExpiresIn);
+  const refreshToken = createToken(jwtPayload, config.jwt_refresh_secret!, config.jwt_refresh_expires_in as ExpiresIn);
 
-  // Step 6: Save refresh token for multi-device support
+
   newUser.refreshTokens = [refreshToken];
   await newUser.save({ validateBeforeSave: false });
 
-  // Step 7: Return response
+
   return {
     accessToken,
     refreshToken,
@@ -95,10 +76,13 @@ const loginUser = async (payload: TLoginUser) => {
     status: user.status
   };
 
-  const accessToken = createToken(jwtPayload, config.jwt_access_secret!, '15m');
-  const refreshToken = createToken(jwtPayload, config.jwt_refresh_secret!, '7d');
+ 
+  type ExpiresIn = `${number}${"s" | "m" | "h" | "d"}`;
+  const accessToken = createToken(jwtPayload, config.jwt_access_secret!, config.jwt_access_expires_in as ExpiresIn);
+  const refreshToken = createToken(jwtPayload, config.jwt_refresh_secret!, config.jwt_refresh_expires_in as ExpiresIn);
 
-  // Ensure refreshTokens is array
+
+
   user.refreshTokens = user.refreshTokens || [];
   user.refreshTokens.push(refreshToken);
   await user.save();
@@ -120,9 +104,9 @@ const logoutUser = async (refreshToken: string) => {
   const user = await User.findOne({ refreshTokens: refreshToken });
   if (!user) throw new AppError(httpStatus.NOT_FOUND, 'Invalid refresh token!');
 
-  // Ensure refreshTokens is array
+
   user.refreshTokens = user.refreshTokens || [];
-  // Remove only the token that user logged out from
+
   user.refreshTokens = user.refreshTokens.filter(token => token !== refreshToken);
   await user.save();
 
@@ -143,7 +127,8 @@ const refreshAccessToken = async (refreshToken: string) => {
       status: user.status
     };
 
-    const accessToken = createToken(jwtPayload, config.jwt_access_secret!, '15m');
+    type ExpiresIn = `${number}${"s" | "m" | "h" | "d"}`;
+    const accessToken = createToken(jwtPayload, config.jwt_access_secret!, config.jwt_access_expires_in as ExpiresIn);
 
     return { accessToken };
   } catch (err: any) {
